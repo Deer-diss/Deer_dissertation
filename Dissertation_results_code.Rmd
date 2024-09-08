@@ -1,0 +1,1415 @@
+---
+title: "Dissertation_results_analysis_R"
+author: "Jessica Frater"
+date: "2024-08-13"
+output: 
+  html_document: 
+    toc: true
+---
+
+*Load full data first.*
+```{r}
+library(tidyverse)
+
+#Reading the full mock dataset (with no edits). 
+data_full <- read.csv("real_data.csv", stringsAsFactors = FALSE)
+
+```
+
+
+*Create a new object for the reduced data*. 
+```{r}
+#Creating new object for reduced data. 
+data_reduced <- data_full 
+```
+
+
+*Checking values of the attention check before removing the column.*
+```{r}
+unique(data_reduced$attention_check)
+```
+
+*Removing unnecessary columns and rows.*
+```{r}
+#Removing unnecessary columns and rows. 
+data_reduced <- data_reduced[-(1:2) , -(c(1:5, 7:8, 10:24, 46,  80:95))]
+```
+
+
+*Renaming columns.*
+```{r}
+#Renaming columns. 
+colnames(data_reduced)[1] <- "duration"
+colnames(data_reduced)[2] <- "response_id"
+
+colnames(data_reduced)[8] <- "v1_acceptability"
+colnames(data_reduced)[9] <- "v2_acceptability"
+colnames(data_reduced)[13] <- "v6_acceptability"
+colnames(data_reduced)[16] <- "v9_acceptability"
+colnames(data_reduced)[22] <- "v15_acceptability"
+
+colnames(data_reduced)[24] <- "MAC_family_protect"
+colnames(data_reduced)[25] <- "MAC_family_help"
+colnames(data_reduced)[26] <- "MAC_family_love"
+
+colnames(data_reduced)[27] <- "MAC_community_help"
+colnames(data_reduced)[28] <- "MAC_community_member_help"
+colnames(data_reduced)[29] <- "MAC_community_unite"
+
+colnames(data_reduced)[30] <- "MAC_reciprocity_agree"
+colnames(data_reduced)[31] <- "MAC_reciprocity_promise"
+colnames(data_reduced)[32] <- "MAC_reciprocity_trust"
+
+colnames(data_reduced)[33] <- "MAC_heroism_act"
+colnames(data_reduced)[34] <- "MAC_heroism_adversity"
+colnames(data_reduced)[35] <- "MAC_heroism_brave"
+
+colnames(data_reduced)[36] <- "MAC_deference_defer_authority"
+colnames(data_reduced)[37] <- "MAC_deference_disobey"
+colnames(data_reduced)[38] <- "MAC_deference_respect_authority"
+
+colnames(data_reduced)[39] <- "MAC_equality_keep"
+colnames(data_reduced)[40] <- "MAC_equality_favouritism"
+colnames(data_reduced)[41] <- "MAC_equality_take"
+
+colnames(data_reduced)[42] <- "MAC_property_vandalise"
+colnames(data_reduced)[43] <- "MAC_property_keep"
+colnames(data_reduced)[44] <- "MAC_property_damage"
+
+colnames(data_reduced)[49] <- "identity_deer_stalker"
+colnames(data_reduced)[54] <- "rural_urban_childhood"
+
+```
+
+
+```{r}
+#Removing country column following the check. 
+data_reduced <- data_reduced[ , -7]
+```
+
+
+*Combine the four levels in rural/urban (childhood and current) into just two levels of "rural" / "urban".*
+
+*Make tables before and after the transformation to check numbers add up.*
+
+```{r}
+#For rural_urban_childhood:
+data_reduced$rural_urban_childhood_reduced <- data_reduced$rural_urban_childhood
+
+#Changing both rural options to "Rural". 
+data_reduced$rural_urban_childhood_reduced[data_reduced$rural_urban_childhood_reduced == "Quite rural"] <- "Rural"
+
+data_reduced$rural_urban_childhood_reduced[data_reduced$rural_urban_childhood_reduced == "Very rural (e.g., a small village or the countryside)"] <- "Rural"
+
+#Changing both urban options to "Urban". 
+data_reduced$rural_urban_childhood_reduced[data_reduced$rural_urban_childhood_reduced == "Quite urban"] <- "Urban"
+
+data_reduced$rural_urban_childhood_reduced[data_reduced$rural_urban_childhood_reduced == "Very urban (e.g., a city or large town)" ] <- "Urban"
+
+t(t(unique(data_reduced$rural_urban_childhood_reduced)))
+```
+
+```{r}
+t(t(table(data_reduced$rural_urban_childhood)))
+table(data_reduced$rural_urban_childhood_reduced)
+```
+
+```{r}
+#For rural_urban_current:
+data_reduced$rural_urban_current_reduced <- data_reduced$rural_urban_current
+
+
+#Changing both rural options to "Rural". 
+data_reduced$rural_urban_current_reduced[data_reduced$rural_urban_current_reduced == "Quite rural"] <- "Rural"
+
+data_reduced$rural_urban_current_reduced[data_reduced$rural_urban_current_reduced == "Very rural (e.g., a small village or the countryside)"] <- "Rural"
+
+#Changing both urban options to "Urban". 
+data_reduced$rural_urban_current_reduced[data_reduced$rural_urban_current_reduced == "Quite urban"] <- "Urban"
+
+data_reduced$rural_urban_current_reduced[data_reduced$rural_urban_current_reduced == "Very urban (e.g., a city or large town)" ] <- "Urban"
+
+t(t(unique(data_reduced$rural_urban_current_reduced)))
+```
+
+```{r}
+t(t(table(data_reduced$rural_urban_current)))
+t(t(table(data_reduced$rural_urban_current_reduced)))
+```
+
+
+*Creating tables to check the number of each response option we have, and whether these match our quotas for those we have stratified for.*
+
+**Did the percentages by hand - how to do this in R?**
+
+```{r}
+t(t(table(data_reduced$gender)))
+```
+Gender stratified quotas: 
+Male (48%)
+Female (52%)
+
+Our data: 
+Total = 1214
+Male = 47.4%
+Female = 52.4%
+
+
+```{r}
+t(t(table(data_reduced$ethnicity)))
+```
+Ethnicity stratified quotas:
+White (96%)
+Asian (3%)
+African, Black, Caribbean (1%)
+Arab (<1%)
+Mixed or multiple ethnicity (<1%)
+Other ethnicity (<1%)
+Prefer not to say (<1%)
+
+Our data
+Total = 1214
+White = 94.7%
+Asian = 3.1%
+African = 1.1%
+Mixed = 0.8%
+
+
+```{r}
+t(t(table(data_reduced$rural_urban_current)))
+``` 
+Rural/urban stratified quotas: 
+Urban – very urban and quite urban combined (83%)
+Rural – very rural and quite rural combined (17%)
+
+NOTE: we will over-sample rural respondents, aiming for 70% urban, 30% rural.
+
+Our data: 
+Total = 1,214
+Rural = 30.1%
+Urban = 69.9%
+
+
+```{r}
+t(table(data_reduced$age))
+``` 
+
+```{r}
+#Creating a table with all the age values in it. 
+age_table <- data_reduced$age
+
+#Adding a new column to the data frame so I can assign categories to ages. 
+data_reduced$age_categories <- age_table
+```
+
+```{r}
+#Assigning the correct category of age. 
+library(dplyr)
+
+data_reduced <- data_reduced %>% mutate(age_categories = case_when (age_categories <= 34 ~ "34 and under", age_categories >= 35 & age_categories <= 44 ~ "35-44", age_categories >= 45 & age_categories <= 59 ~ "45-59", age_categories >= 60 ~ "60+",))
+
+```
+
+```{r}
+t(t(table(data_reduced$age_categories)))
+```
+Age stratified quotas: 
+Under 34 (29%)
+35-44 (15%)
+45-59 (26%)
+60+ (31%)
+
+Our data: 
+Total = 1,214
+34 and under = 29.2%
+35-44 = 15.1%
+45-59 = 25.7%
+60+ = 30.1%
+
+
+**Remove respondents who fall into categories with too few people?**
+
+*Combining minority demographic variables*
+```{r}
+table(data_reduced$gender)
+```
+
+```{r}
+gender_count <- table(data_reduced$gender)
+gender_count 
+```
+
+```{r}
+gender_percent <- (gender_count / length(data_reduced$gender))*100
+gender_percent
+```
+
+```{r}
+#Filtering out the two minority gender categories (they cannot be combined with other categories). 
+gender_minority <- filter(data_reduced, gender == "Non-binary" | gender == "Other")
+
+data_reduced <- filter(data_reduced, gender != "Non-binary")
+data_reduced <- filter(data_reduced, gender != "Other")
+
+data_reduced$gender <- factor(data_reduced$gender, c("Male", "Female"), ordered = FALSE)
+
+
+```
+
+```{r}
+table(data_reduced$land_ownership)
+```
+
+```{r}
+#Combining the highest land ownership levels together, as too few people. 
+#This needs to be done higher up, before I make it an ordered factor. 
+data_reduced$land_ownership_reduced <- data_reduced$land_ownership
+
+data_reduced$land_ownership_reduced[data_reduced$land_ownership_reduced == "1 - 10 hectares" ] <- "1 hectare or more"
+
+data_reduced$land_ownership_reduced[data_reduced$land_ownership_reduced == "More than 10 hectares" ] <- "1 hectare or more"
+
+t(t(unique(data_reduced$land_ownership_reduced)))
+table(data_reduced$land_ownership_reduced)
+```
+
+
+```{r}
+t(t(table(data_reduced$education)))
+```
+
+```{r}
+#Combining the primary school with secondary school, as primary has too few people. 
+data_reduced$education_reduced <- data_reduced$education
+table(data_reduced$education_reduced)
+```
+
+
+```{r}
+data_reduced$education_reduced[data_reduced$education_reduced == "Primary School" ] <- "Primary or secondary school"
+
+data_reduced$education_reduced[data_reduced$education_reduced == "Secondary School" ] <- "Primary or secondary school"
+
+table(data_reduced$education)
+table(data_reduced$education_reduced)
+```
+
+*Combine identity values so they work in the model (too few responses for some options).* 
+
+```{r}
+#Combining identity_deer_stalker to 3-point scale. 
+data_reduced$identity_deer_stalker_reduced <- data_reduced$identity_deer_stalker 
+```
+
+```{r}
+data_reduced$identity_deer_stalker_reduced[data_reduced$identity_deer_stalker_reduced == "Strongly agree" ] <- "Agree"
+data_reduced$identity_deer_stalker_reduced[data_reduced$identity_deer_stalker_reduced == "Somewhat agree" ] <- "Agree"
+
+data_reduced$identity_deer_stalker_reduced[data_reduced$identity_deer_stalker_reduced == "Strongly disagree" ] <- "Disagree"
+data_reduced$identity_deer_stalker_reduced[data_reduced$identity_deer_stalker_reduced == "Somewhat disagree" ] <- "Disagree"
+
+```
+
+
+```{r}
+#Combining identity_env_cons to 3-point scale. 
+data_reduced$identity_env_cons_reduced <- data_reduced$identity_env_cons 
+```
+
+```{r}
+data_reduced$identity_env_cons_reduced[data_reduced$identity_env_cons_reduced == "Strongly agree" ] <- "Agree"
+data_reduced$identity_env_cons_reduced[data_reduced$identity_env_cons_reduced == "Somewhat agree" ] <- "Agree"
+
+data_reduced$identity_env_cons_reduced[data_reduced$identity_env_cons_reduced == "Strongly disagree" ] <- "Disagree"
+data_reduced$identity_env_cons_reduced[data_reduced$identity_env_cons_reduced == "Somewhat disagree" ] <- "Disagree"
+
+```
+
+
+```{r}
+#Combining identity_animal_prot to 3-point scale. 
+data_reduced$identity_animal_prot_reduced <- data_reduced$identity_animal_prot 
+```
+
+```{r}
+data_reduced$identity_animal_prot_reduced[data_reduced$identity_animal_prot_reduced == "Strongly agree" ] <- "Agree"
+data_reduced$identity_animal_prot_reduced[data_reduced$identity_animal_prot_reduced == "Somewhat agree" ] <- "Agree"
+
+data_reduced$identity_animal_prot_reduced[data_reduced$identity_animal_prot_reduced == "Strongly disagree" ] <- "Disagree"
+data_reduced$identity_animal_prot_reduced[data_reduced$identity_animal_prot_reduced == "Somewhat disagree" ] <- "Disagree"
+
+```
+
+
+```{r}
+#Combining deer_enjoy to 3-point scale. 
+data_reduced$deer_enjoy_reduced <- data_reduced$deer_enjoy
+```
+
+```{r}
+data_reduced$deer_enjoy_reduced[data_reduced$deer_enjoy_reduced == "Strongly agree" ] <- "Agree"
+data_reduced$deer_enjoy_reduced[data_reduced$deer_enjoy_reduced == "Somewhat agree" ] <- "Agree"
+
+data_reduced$deer_enjoy_reduced[data_reduced$deer_enjoy_reduced == "Strongly disagree" ] <- "Disagree"
+data_reduced$deer_enjoy_reduced[data_reduced$deer_enjoy_reduced == "Somewhat disagree" ] <- "Disagree"
+
+```
+
+
+```{r}
+#Combining deer_abundance to 3-point scale. 
+data_reduced$deer_abundance_reduced <- data_reduced$deer_abundance
+```
+
+```{r}
+data_reduced$deer_abundance_reduced[data_reduced$deer_abundance_reduced == "Far too high" ] <- "Too high"
+
+data_reduced$deer_abundance_reduced[data_reduced$deer_abundance_reduced == "Far too low" ] <- "Too low"
+```
+
+
+```{r}
+#Combining deer_frequency to 3-point scale. 
+data_reduced$deer_frequency_reduced <- data_reduced$deer_frequency
+```
+
+```{r}
+data_reduced$deer_frequency_reduced[data_reduced$deer_frequency_reduced == "Never or almost never" ] <- "Less than once a month"
+
+data_reduced$deer_frequency_reduced[data_reduced$deer_frequency_reduced == "About once a year" ] <- "Less than once a month"
+
+data_reduced$deer_frequency_reduced[data_reduced$deer_frequency_reduced == "About once a week" ] <- "More than once a month"
+
+data_reduced$deer_frequency_reduced[data_reduced$deer_frequency_reduced == "More than once a week" ] <- "More than once a month"
+```
+
+
+
+```{r}
+#Combining deer_cull_knowledge to 3-point scale. 
+data_reduced$deer_cull_knowledge_reduced <- data_reduced$deer_cull_knowledge
+```
+
+```{r}
+data_reduced$deer_cull_knowledge_reduced[data_reduced$deer_cull_knowledge_reduced == "Strongly agree" ] <- "Agree"
+data_reduced$deer_cull_knowledge_reduced[data_reduced$deer_cull_knowledge_reduced == "Somewhat agree" ] <- "Agree"
+
+data_reduced$deer_cull_knowledge_reduced[data_reduced$deer_cull_knowledge_reduced == "Strongly disagree" ] <- "Disagree"
+data_reduced$deer_cull_knowledge_reduced[data_reduced$deer_cull_knowledge_reduced == "Somewhat disagree" ] <- "Disagree"
+
+```
+
+
+
+
+```{r}
+data_reduced$trust_gov_reduced <- data_reduced$trust_gov
+
+table(data_reduced$trust_gov_reduced)
+```
+
+```{r}
+#data_reduced <- filter(data_reduced, trust_gov != "I do not know")
+
+data_reduced$trust_gov_reduced[data_reduced$trust_gov_reduced == "Always"] <- "Always or most of the time"
+data_reduced$trust_gov_reduced[data_reduced$trust_gov_reduced == "Most of the time"] <- "Always or most of the time"
+
+data_reduced$trust_gov_reduced[data_reduced$trust_gov_reduced == "Only now and then"] <- "Never or only now and then"
+data_reduced$trust_gov_reduced[data_reduced$trust_gov_reduced == "Never"] <- "Never or only now and then"
+
+```
+
+
+
+*Ensure columns are of the right classes - number as numeric and everything else as a factor (not character). Use `class`.*
+
+```{r}
+#Checking the class of all columns. 
+t(t(sapply(data_reduced, class)))
+```
+
+
+```{r}
+#Changing necessary columns to factors.
+data_reduced[ , (c(3, 5:6, 7:22, 44:54, 56:68))] <- lapply(data_reduced[ , (c(3, 5:6, 7:22, 44:54, 56:68))], as.factor)
+```
+
+```{r}
+#Changing necessary columns to numeric. 
+data_reduced[ , (c(1, 4, 23:43))] <- lapply(data_reduced[ , (c(1, 4, 23:43))], as.numeric)
+```
+
+
+*Work out the median of the duration column.*
+```{r}
+median_value <- median(data_reduced$duration)
+median_value
+```
+
+*Work out half the median value and 3x the median value (to use in the next step when filtering).*
+
+```{r}
+median_half <- median_value/2
+median_half
+
+median_four_times <- median_value*4
+median_four_times
+```
+
+*Filter out the less than half median and more than 3x median people (Qualtrics replace these).* 
+*Creating tables to keep the values that are to be filtered out of the data (to inform Qualtrics).*
+
+```{r}
+median_fast <- filter(data_reduced, duration < median_half)
+median_slow <- filter(data_reduced, duration > median_four_times)
+```
+
+
+```{r}
+library(tidyverse)
+
+data_reduced <- data_reduced %>%
+  filter(duration > median_half & duration < median_four_times) 
+```
+
+
+```{r}
+write.csv(median_fast, file = "median_fast.csv", row.names = FALSE)
+write.csv(median_slow, file = "median_slow.csv", row.names = FALSE)
+```
+
+
+
+*Ensure the levels of the necessary factors are in the right order.* 
+
+```{r}
+#Ordering the levels of the education and education_reduced factor.
+data_reduced$education <- factor(data_reduced$education, c("Primary School", "Secondary School", "College or university degree", "Postgraduate degree"), ordered = FALSE)
+
+data_reduced$education_reduced <- factor(data_reduced$education_reduced, c("Primary or secondary school", "College or university degree", "Postgraduate degree"), ordered = FALSE)
+
+levels(data_reduced$education)
+levels(data_reduced$education_reduced)
+
+```
+
+
+```{r}
+#Ordering the levels of the land ownership factor.  
+data_reduced$land_ownership <- factor(data_reduced$land_ownership, c("None", "Less than 1 hectare", "1 - 10 hectares", "More than 10 hectares"), ordered = FALSE)
+
+data_reduced$land_ownership_reduced <- factor(data_reduced$land_ownership_reduced, c("None", "Less than 1 hectare", "1 hectare or more"), ordered = FALSE)
+
+t(t(levels(data_reduced$land_ownership)))
+t(t(levels(data_reduced$land_ownership_reduced)))
+
+```
+
+
+```{r}
+#Ordering the levels of the identity factors.  
+data_reduced$deer_enjoy <- factor(data_reduced$deer_enjoy, c("Strongly disagree", "Disagree", "Somewhat disagree", "Neither agree nor disagree", "Somewhat agree", "Agree", "Strongly agree", "I do not know"), ordered = FALSE)
+
+data_reduced$deer_enjoy_reduced <- factor(data_reduced$deer_enjoy_reduced, c("Disagree", "Neither agree nor disagree", "Agree", "I do not know"), ordered = FALSE)
+
+t(t(levels(data_reduced$deer_enjoy)))
+t(t(levels(data_reduced$deer_enjoy_reduced)))
+```
+
+
+```{r}
+data_reduced$deer_frequency <- factor(data_reduced$deer_frequency, c("Never or almost never", "About once a year", "About once a month", "About once a week", "More than once a week", "I do not know"), ordered = FALSE)
+
+data_reduced$deer_frequency_reduced <- factor(data_reduced$deer_frequency_reduced, c("Less than once a month", "About once a month", "More than once a month", "I do not know"), ordered = FALSE)
+
+t(t(levels(data_reduced$deer_frequency)))
+t(t(levels(data_reduced$deer_frequency_reduced)))
+```
+
+
+```{r}
+data_reduced$deer_abundance <- factor(data_reduced$deer_abundance, c("Far too low", "Too low", "About right", "Too high", "Far too high", "I do not know"), ordered = FALSE)
+
+data_reduced$deer_abundance_reduced <- factor(data_reduced$deer_abundance_reduced, c("Too low", "About right", "Too high", "I do not know"), ordered = FALSE)
+
+t(t(levels(data_reduced$deer_abundance)))
+t(t(levels(data_reduced$deer_abundance_reduced)))
+```
+
+```{r}
+table(data_reduced$deer_cull_knowledge_reduced)
+```
+
+
+```{r}
+data_reduced$deer_cull_knowledge <- factor(data_reduced$deer_cull_knowledge, c("Strongly disagree", "Disagree", "Somewhat disagree", "Neither agree nor disagree", "Somewhat agree", "Agree", "Strongly agree", "I do not know"), ordered = FALSE) 
+
+data_reduced$deer_cull_knowledge_reduced <- factor(data_reduced$deer_cull_knowledge_reduced, c("Disagree", "Neither agree nor disagree", "Agree", "I do not know"), ordered = FALSE) 
+
+t(t(levels(data_reduced$deer_cull_knowledge)))
+t(t(levels(data_reduced$deer_cull_knowledge_reduced)))
+```
+
+
+```{r}
+data_reduced$trust_gov <- factor(data_reduced$trust_gov, c("Never", "Only now and then", "Some of the time", "Most of the time", "Always", "I do not know"), ordered = FALSE)
+
+data_reduced$trust_gov_reduced <- factor(data_reduced$trust_gov_reduced, c("Never or only now and then", "Some of the time", "Always or most of the time", "I do not know"), ordered = FALSE)
+
+t(t(levels(data_reduced$trust_gov)))
+t(t(levels(data_reduced$trust_gov_reduced)))
+```
+
+
+```{r}
+data_reduced$identity_deer_stalker <- factor(data_reduced$identity_deer_stalker, c("Strongly disagree", "Disagree", "Somewhat disagree", "Neither agree nor disagree", "Somewhat agree", "Agree", "Strongly agree", "I do not know"), ordered = FALSE)
+
+data_reduced$identity_deer_stalker_reduced <- factor(data_reduced$identity_deer_stalker_reduced, c("Disagree", "Neither agree nor disagree", "Agree", "I do not know"), ordered = FALSE)
+
+t(t(levels(data_reduced$identity_deer_stalker)))
+t(t(levels(data_reduced$identity_deer_stalker_reduced)))
+```
+
+```{r}
+data_reduced$identity_animal_prot <- factor(data_reduced$identity_animal_prot, c("Strongly disagree", "Disagree", "Somewhat disagree", "Neither agree nor disagree", "Somewhat agree", "Agree", "Strongly agree", "I do not know"), ordered = FALSE)
+
+data_reduced$identity_animal_prot_reduced <- factor(data_reduced$identity_animal_prot_reduced, c("Disagree", "Neither agree nor disagree", "Agree", "I do not know"), ordered = FALSE)
+
+t(t(levels(data_reduced$identity_animal_prot)))
+t(t(levels(data_reduced$identity_animal_prot_reduced)))
+```
+
+```{r}
+data_reduced$identity_env_cons <- factor(data_reduced$identity_env_cons, c("Strongly disagree", "Disagree", "Somewhat disagree", "Neither agree nor disagree", "Somewhat agree", "Agree", "Strongly agree", "I do not know"), ordered = FALSE)
+
+data_reduced$identity_env_cons_reduced <- factor(data_reduced$identity_env_cons_reduced, c("Disagree", "Neither agree nor disagree", "Agree", "I do not know"), ordered = FALSE)
+
+t(t(levels(data_reduced$identity_env_cons)))
+t(t(levels(data_reduced$identity_env_cons_reduced)))
+```
+
+
+```{r}
+data_reduced$age_categories <- factor(data_reduced$age_categories, c("34 and under", "35-44", "45-59", "60+"), ordered = FALSE)
+
+t(t(levels(data_reduced$age_categories)))
+
+```
+
+
+
+*Make 7 MAC columns for each domain (from 21).*
+
+*Create a vector with a score out of 300 for each morality domain.*
+```{r}
+data_reduced$MAC_score_family <- data_reduced$MAC_family_help + data_reduced$MAC_family_love + data_reduced$MAC_family_protect
+```
+
+```{r}
+data_reduced$MAC_score_community <- data_reduced$MAC_community_help + data_reduced$MAC_community_member_help + data_reduced$MAC_community_unite
+```
+
+```{r}
+data_reduced$MAC_score_reciprocity <- data_reduced$MAC_reciprocity_agree + data_reduced$MAC_reciprocity_promise + data_reduced$MAC_reciprocity_trust
+```
+
+```{r}
+data_reduced$MAC_score_heroism <- data_reduced$MAC_heroism_act + data_reduced$MAC_heroism_adversity + data_reduced$MAC_heroism_brave
+```
+
+```{r}
+data_reduced$MAC_score_deference <- data_reduced$MAC_deference_defer_authority + data_reduced$MAC_deference_disobey + data_reduced$MAC_deference_respect_authority
+```
+
+```{r}
+data_reduced$MAC_score_equality <- data_reduced$MAC_equality_keep + data_reduced$MAC_equality_favouritism + data_reduced$MAC_equality_take
+```
+
+```{r}
+data_reduced$MAC_score_property <- data_reduced$MAC_property_vandalise + data_reduced$MAC_property_keep + data_reduced$MAC_property_damage
+```
+
+
+*Remove original MAC columns from data.*
+```{r}
+data_reduced <- data_reduced[ , -(23:43)]
+```
+
+
+
+*Vignette columns:*
+
+*Make empty values NA instead of blank.*
+
+```{r}
+data_reduced[data_reduced == ""] <- NA
+```
+
+
+*Make a new single vignette column that identifies which vignette is NOT "NA".*
+*Search per row, to identify and locate which value is NOT NA.*
+*Assign a number from 1 to 16 to the "vignette" new column.*
+
+```{r}
+data_reduced$vignette_number <- apply(data_reduced[, c(7:22)], 1, function(x) which(!is.na(x)))
+```
+
+
+*Use unique to check the values of the numeric vignette data.*
+```{r}
+#Adding the data in the vignette number column to a vector. 
+vignette_number_data <- data_reduced$vignette_number
+unique(vignette_number_data)
+```
+
+*Make new columns for text / image / gain+loss.*
+*Using this new vignette column, the number from 1 - 16 corresponds to certain entries into the new "text", "image", and "gain/loss" columns.*
+
+```{r}
+#Adding the vignette numbers (from the vector created above) to new 3 columns for each frame type. 
+data_reduced$text_frame <- vignette_number_data
+data_reduced$image_frame <- vignette_number_data
+data_reduced$gain_loss_frame <- vignette_number_data
+```
+
+
+```{r}
+#Text frame: 
+
+#Changing vignette numbers 1, 2, 3, and 4 to "biodiversity" text frame. 
+data_reduced$text_frame[data_reduced$text_frame == "1"] <- "Biodiversity"
+data_reduced$text_frame[data_reduced$text_frame == "2"] <- "Biodiversity"
+data_reduced$text_frame[data_reduced$text_frame == "3"] <- "Biodiversity"
+data_reduced$text_frame[data_reduced$text_frame == "4"] <- "Biodiversity"
+
+#Changing vignette numbers 5, 6, 7, and 8 to "climate" text frame. 
+data_reduced$text_frame[data_reduced$text_frame == "5"] <- "Climate"
+data_reduced$text_frame[data_reduced$text_frame == "6"] <- "Climate"
+data_reduced$text_frame[data_reduced$text_frame == "7"] <- "Climate"
+data_reduced$text_frame[data_reduced$text_frame == "8"] <- "Climate"
+
+#Changing vignette numbers 9, 10, 11, and 12 to "deer welfare" text frame. 
+data_reduced$text_frame[data_reduced$text_frame == "9"] <- "Deer welfare"
+data_reduced$text_frame[data_reduced$text_frame == "10"] <- "Deer welfare"
+data_reduced$text_frame[data_reduced$text_frame == "11"] <- "Deer welfare"
+data_reduced$text_frame[data_reduced$text_frame == "12"] <- "Deer welfare"
+
+#Changing vignette numbers 13, 14, 15, and 16 to "human health" text frame. 
+data_reduced$text_frame[data_reduced$text_frame == "13"] <- "Human health"
+data_reduced$text_frame[data_reduced$text_frame == "14"] <- "Human health"
+data_reduced$text_frame[data_reduced$text_frame == "15"] <- "Human health"
+data_reduced$text_frame[data_reduced$text_frame == "16"] <- "Human health"
+```
+
+
+```{r}
+#Image frame:
+
+#Changing relevant vignettes to "healthy" image frame.  
+data_reduced$image_frame[data_reduced$image_frame == "1"] <- "Healthy"
+data_reduced$image_frame[data_reduced$image_frame == "3"] <- "Healthy"
+data_reduced$image_frame[data_reduced$image_frame == "5"] <- "Healthy"
+data_reduced$image_frame[data_reduced$image_frame == "7"] <- "Healthy"
+data_reduced$image_frame[data_reduced$image_frame == "9"] <- "Healthy"
+data_reduced$image_frame[data_reduced$image_frame == "11"] <- "Healthy"
+data_reduced$image_frame[data_reduced$image_frame == "13"] <- "Healthy"
+data_reduced$image_frame[data_reduced$image_frame == "15"] <- "Healthy"
+
+#Changing relevant vignettes to "unhealthy" image frame.  
+data_reduced$image_frame[data_reduced$image_frame == "2"] <- "Unhealthy"
+data_reduced$image_frame[data_reduced$image_frame == "4"] <- "Unhealthy"
+data_reduced$image_frame[data_reduced$image_frame == "6"] <- "Unhealthy"
+data_reduced$image_frame[data_reduced$image_frame == "8"] <- "Unhealthy"
+data_reduced$image_frame[data_reduced$image_frame == "10"] <- "Unhealthy"
+data_reduced$image_frame[data_reduced$image_frame == "12"] <- "Unhealthy"
+data_reduced$image_frame[data_reduced$image_frame == "14"] <- "Unhealthy"
+data_reduced$image_frame[data_reduced$image_frame == "16"] <- "Unhealthy"
+```
+
+```{r}
+#Gain/loss frame: 
+
+#Changing relevant vignettes to "gain" frame.  
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "1"] <- "Gain"
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "2"] <- "Gain"
+
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "5"] <- "Gain"
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "6"] <- "Gain"
+
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "9"] <- "Gain"
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "10"] <- "Gain"
+
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "13"] <- "Gain"
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "14"] <- "Gain"
+
+#Changing relevant vignettes to "loss" frame.  
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "3"] <- "Loss"
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "4"] <- "Loss"
+
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "7"] <- "Loss"
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "8"] <- "Loss"
+
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "11"] <- "Loss"
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "12"] <- "Loss"
+
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "15"] <- "Loss"
+data_reduced$gain_loss_frame[data_reduced$gain_loss_frame == "16"] <- "Loss"
+
+```
+
+
+*Check the class of all columns. Edit the class of the new columns.*
+```{r}
+#Checking the class of all columns. 
+t(t(sapply(data_reduced, class)))
+```
+
+```{r}
+#Changing new vignette column to numeric. 
+data_reduced$vignette_number <- as.numeric(data_reduced$vignette_number)
+```
+
+```{r}
+#Changing new frames columns to factors 
+data_reduced[ , 56:58] <- lapply(data_reduced[ , 56:58], as.factor)
+```
+
+
+*Combine the 16 acceptability columns with response choices in to one column.* 
+
+```{r}
+#combining the 16 acceptability responses into one column called "vignette_acceptability". 
+data_reduced <- data_reduced %>% unite("vignette_acceptability", 7:22, na.rm = TRUE, remove = FALSE)
+```
+
+
+*Remove participants that have answered "I do not know" (only for this variable).*
+
+```{r}
+#Creating a table with all participants who answered "I do not know" for acceptability response. 
+idk <- filter(data_reduced, vignette_acceptability == "I do not know")
+```
+
+```{r}
+#Removing participants who have answered "I do not know" from the data. 
+data_reduced <- filter(data_reduced, vignette_acceptability != "I do not know")
+```
+
+
+```{r}
+#Changing class to factor. 
+data_reduced$vignette_acceptability <- as.factor(data_reduced$vignette_acceptability)
+
+class(data_reduced$vignette_acceptability)
+```
+
+
+*Checking unique values for the new vignette column.*
+```{r}
+t(t(unique(data_reduced$vignette_acceptability)))
+```
+
+*Order the levels of the new vignette acceptability column, from disagree to agree.*
+
+```{r}
+data_reduced$vignette_acceptability <- factor(data_reduced$vignette_acceptability, c("Very unacceptable", "Unacceptable", "Somewhat unacceptable", "Neither acceptable nor unacceptable", "Somewhat acceptable", "Acceptable", "Very acceptable"), ordered = TRUE)
+
+t(t(levels(data_reduced$vignette_acceptability)))
+class(data_reduced$vignette_acceptability)
+```
+
+
+
+
+*Finding the median and range of the number of responses per vignette (participants were randomly assigned).* 
+
+```{r}
+table(data_reduced$vignette_number)
+```
+
+```{r}
+median(table(data_reduced$vignette_number))
+range(table(data_reduced$vignette_number))
+```
+
+
+
+
+
+*Likert plot.*
+
+```{r}
+library(likert)
+
+#Select just the acceptability columns. Using full data as these have been removed from data_reduced. 
+likert_dataframe <- filter(data_reduced[ , 8:23])
+
+#Rename columns to what you want it to be on the likert plot. 
+colnames(likert_dataframe)[1] <- "biodiversity / gain / healthy"
+colnames(likert_dataframe)[2] <- "biodiversity / gain / unhealthy"
+colnames(likert_dataframe)[3] <- "biodiversity / loss / healthy"
+colnames(likert_dataframe)[4] <- "biodiversity / loss / unhealthy"
+
+colnames(likert_dataframe)[5] <- "climate / gain / healthy"
+colnames(likert_dataframe)[6] <- "climate / gain / unhealthy"
+colnames(likert_dataframe)[7] <- "climate / loss / healthy"
+colnames(likert_dataframe)[8] <- "climate / loss / unhealthy"
+
+colnames(likert_dataframe)[9] <- "deer welfare / gain / healthy"
+colnames(likert_dataframe)[10] <- "deer welfare / gain / unhealthy"
+colnames(likert_dataframe)[11] <- "deer welfare / loss / healthy"
+colnames(likert_dataframe)[12] <- "deer welfare / loss / unhealthy"
+
+colnames(likert_dataframe)[13] <- "human health / gain / healthy"
+colnames(likert_dataframe)[14] <- "human health / gain / unhealthy"
+colnames(likert_dataframe)[15] <- "human health / loss / healthy"
+colnames(likert_dataframe)[16] <- "human health / loss / unhealthy"
+
+#Add NA values to the empty cells. 
+likert_dataframe[likert_dataframe == ""] <- NA
+
+
+#Combining the 16 acceptability responses into one column called "vignette acceptability". 
+likert_dataframe <- likert_dataframe %>% unite("vignette_acceptability", 1:16, na.rm = TRUE, remove = FALSE)
+
+#Making all the columns ordered factors. 
+likert_dataframe[ , ] <- lapply(likert_dataframe[ , ], factor, levels = c("Very unacceptable", "Unacceptable", "Somewhat unacceptable", "Neither acceptable nor unacceptable", "Somewhat acceptable", "Acceptable", "Very acceptable"), ordered = TRUE)
+
+#Removing participants who have answered "I do not know". 
+likert_dataframe <- filter(likert_dataframe, vignette_acceptability != "I do not know")
+
+#Do some maths-y stuff to get ready for the likert plot. 
+likert_plot <- likert(likert_dataframe[ , 2:17])
+summary(likert_plot)
+
+#Make likert plot. 
+likert_plot_visual <- plot(likert_plot,type="bar",
+                                 text.color = "black",
+                                 cex.lab=4,
+                                 text.size = 4, 
+                                 xaxt = "n")
+likert_plot_visual
+
+#Make plot prettier. 
+likert_plot_visual <- likert_plot_visual+
+  theme(axis.text.x= element_text(face = "bold", size = 10))+
+  theme(axis.text.y= element_text(face = "bold", size = 10))+
+  theme(axis.title.x = element_text(face = "bold", size = 12))+
+  theme(legend.text = element_text(face= "bold", size = 10))+
+  theme(legend.title = element_text(face= "bold", size = 12))
+likert_plot_visual
+```
+
+```{r}
+table(data_reduced$identity_deer_stalker)
+```
+
+
+
+*Ordinal logistic regression* 
+
+Darragh: Don't include ethnicity in the model, as it has too little power for non-white participants. Exclude it from the model but report that we considered it (check 2021 paper for wording). 
+                          
+
+Use reduced version of these variables: education_reduced 
+
+```{r}
+library(ordinal) 
+regression <- clm(vignette_acceptability ~ text_frame + image_frame + 
+                                gain_loss_frame
+                         + age + gender + education_reduced + rural_urban_current_reduced + 
+                           rural_urban_childhood_reduced + land_ownership
+                         + deer_cull_knowledge + deer_frequency + deer_enjoy + deer_abundance
+                         + identity_env_cons + identity_animal_prot + identity_deer_stalker
+                         + trust_gov
+                         , link = "logit", data = data_reduced)
+
+summary(regression)
+#confint(regression)        
+```
+
+
+```{r}
+#To save the regression as a CSV. 
+
+# Extract the summary of the model
+regression_summary <- summary(regression)
+
+# Extract the coefficients (or any other specific part of the summary you need)
+regression_coefficients <- as.data.frame(coef(regression_summary))
+
+# Save the coefficients to a CSV file
+write.csv(regression_coefficients, file = "regression_coefficients.csv", row.names = TRUE)
+
+```
+
+
+```{r}
+library(ordinal) 
+regression_top_supported <- clm(vignette_acceptability ~ image_frame 
+                         + gender + 
+                           deer_cull_knowledge + deer_frequency + deer_abundance
+                         + identity_animal_prot + identity_deer_stalker
+                         + trust_gov
+                         , link = "logit", data = data_reduced)
+
+summary(regression_top_supported)
+#confint(regression)               
+```
+
+```{r}
+#To save the regression_top_supported as a CSV. 
+
+# Extract the summary of the model
+regression_top_supported_summary <- summary(regression_top_supported)
+
+# Extract the coefficients (or any other specific part of the summary you need)
+regression_top_supported_coefficients <- as.data.frame(coef(regression_top_supported_summary))
+
+# Save the coefficients to a CSV file
+#write.csv(regression_top_supported_coefficients, file = "regression_top_supported_coefficients.csv", row.names = TRUE)
+
+```
+
+
+
+```{r}
+#image_frame Tukey test.
+library(emmeans)
+
+image_frame_tukey <- emmeans(regression_top_supported, pairwise~image_frame, adjust="tukey", rg.limit=200008080)
+image_frame_tukey
+
+image_frame_tukey_df <- as.data.frame(image_frame_tukey$emmeans)
+```
+
+```{r}
+#image_frame plot from tukey test.
+image_frame_plot <- ggplot(image_frame_tukey_df)+
+theme_bw()+
+geom_pointrange(aes(x=image_frame, y=emmean, ymin = emmean-1.44*SE, ymax = emmean+1.44*SE), position=position_dodge(width = 1), size = 0.8, linewidth = 1)+
+scale_x_discrete(labels = c("Healthy", "Unhealthy"))+
+ theme(axis.text.x= element_text(face = "bold", size = 8))+
+  theme(axis.text.y= element_text(face = "bold", size = 8)) + 
+  labs(y = "Estimate\n", x="\nImage frame")+
+theme(axis.title.x= element_text(face = "bold", size = 12))+
+  theme(axis.title.y= element_text(face = "bold", size = 12)) 
+image_frame_plot
+
+```
+
+```{r}
+#Saving image_frame_plot
+ggsave(filename = "image_frame_plot.png", plot = image_frame_plot, width = 8, height = 6, dpi = 300)
+```
+
+
+
+```{r}
+#gender Tukey test. 
+library(emmeans)
+gender_tukey <- emmeans(regression_top_supported, pairwise~gender, adjust="tukey", rg.limit=200008080)
+gender_tukey
+gender_tukey_df <- as.data.frame(gender_tukey$emmeans)
+```
+
+```{r}
+#gender plot from tukey test. 
+gender_plot <- ggplot(gender_tukey_df)+  
+theme_bw()+  
+geom_pointrange(aes(x=gender, y=emmean, ymin = emmean-1.44*SE, ymax = emmean+1.44*SE), position=position_dodge(width = 1), size = 0.8, linewidth = 1)+  
+scale_x_discrete(labels = c("Male", "Female"))+ 
+ theme(axis.text.x= element_text(face = "bold", size = 8))+
+  theme(axis.text.y= element_text(face = "bold", size = 8)) + 
+  labs(y = "Estimate\n", x="\nGender identity")+
+theme(axis.title.x= element_text(face = "bold", size = 12))+
+  theme(axis.title.y= element_text(face = "bold", size = 12)) 
+
+gender_plot
+```
+
+```{r}
+#Saving image_frame_plot
+ggsave(filename = "gender.png", plot = gender_plot, width = 8, height = 6, dpi = 300)
+```
+
+
+```{r}
+#deer_cull_knowledge Tukey test. 
+library(emmeans)
+deer_cull_knowledge_tukey <- emmeans(regression_top_supported, pairwise~deer_cull_knowledge, adjust="tukey", rg.limit=200008080)
+deer_cull_knowledge_tukey
+deer_cull_knowledge_tukey_df <- as.data.frame(deer_cull_knowledge_tukey$emmeans)
+```
+
+```{r}
+#deer_cull_knowledge plot from Tukey test. 
+deer_cull_knowledge_plot <- ggplot(deer_cull_knowledge_tukey_df)+  
+theme_bw()+  
+geom_pointrange(aes(x=deer_cull_knowledge, y=emmean, ymin = emmean-1.44*SE, ymax = emmean+1.44*SE), position=position_dodge(width = 1), size = 0.8, linewidth = 1)+  
+scale_x_discrete(labels = c("Strongly\ndisagree", "Disgree", "Somewhat\ndisagree", "Neither agree\nnor disagree", "Somewhat\nagree", "Agree", "Strongly\nagree", "I do not\nknow"))+ 
+ theme(axis.text.x= element_text(face = "bold", size = 8))+
+  theme(axis.text.y= element_text(face = "bold", size = 8)) + 
+  labs(y = "Estimate\n", x="\nKnowledge of deer cull")+
+theme(axis.title.x= element_text(face = "bold", size = 12))+
+  theme(axis.title.y= element_text(face = "bold", size = 12)) 
+deer_cull_knowledge_plot
+
+```
+
+```{r}
+#Saving image_frame_plot
+ggsave(filename = "deer_cull_knowledge.png", plot = deer_cull_knowledge_plot, width = 8, height = 6, dpi = 300)
+```
+
+
+```{r}
+#deer_frequency Tukey test. 
+library(emmeans)
+deer_frequency_tukey <- emmeans(regression_top_supported, pairwise~deer_frequency, adjust="tukey", rg.limit=200008080)
+deer_frequency_tukey
+deer_frequency_tukey_df <- as.data.frame(deer_frequency_tukey$emmeans)
+```
+
+```{r}
+#deer_frequency plot from Tukey test. 
+deer_frequency_plot <- ggplot(deer_frequency_tukey_df)+  
+theme_bw()+  
+geom_pointrange(aes(x=deer_frequency, y=emmean, ymin = emmean-1.44*SE, ymax = emmean+1.44*SE), position=position_dodge(width = 1), size = 0.8, linewidth = 1)+  
+scale_x_discrete(labels = c("Never or\nalmost never", "About once\na year", "About once\na month", "About once\na week", "More than\nonce a week", "I do not\nknow"))+ 
+ theme(axis.text.x= element_text(face = "bold", size = 8))+
+  theme(axis.text.y= element_text(face = "bold", size = 8)) + 
+  labs(y = "Estimate\n", x="\nFrequency of encounter")+
+theme(axis.title.x= element_text(face = "bold", size = 12))+
+  theme(axis.title.y= element_text(face = "bold", size = 12)) 
+
+deer_frequency_plot
+
+```
+
+
+```{r}
+#Saving image_frame_plot
+ggsave(filename = "deer_frequency_plot.png", plot = deer_frequency_plot, width = 8, height = 6, dpi = 300)
+```
+
+
+
+```{r}
+#deer_abundance Tukey test. 
+library(emmeans)
+deer_abundance_tukey <- emmeans(regression_top_supported, pairwise~deer_abundance, adjust="tukey", rg.limit=200008080)
+deer_abundance_tukey
+deer_abundance_tukey_df <- as.data.frame(deer_abundance_tukey$emmeans)
+```
+
+```{r}
+#deer_abundance plot from Tukey test. 
+deer_abundance_plot <- ggplot(deer_abundance_tukey_df)+  
+theme_bw()+  
+geom_pointrange(aes(x=deer_abundance, y=emmean, ymin = emmean-1.44*SE, ymax = emmean+1.44*SE), position=position_dodge(width = 1), size = 0.8, linewidth = 1)+  
+scale_x_discrete(labels = c("Far too low", "Too low", "About right", "Too high", "Far too high", "I do not\nknow"))+ 
+ theme(axis.text.x= element_text(face = "bold", size = 8))+
+  theme(axis.text.y= element_text(face = "bold", size = 8)) + 
+  labs(y = "Estimate\n", x="\nDeer abundance")+
+theme(axis.title.x= element_text(face = "bold", size = 12))+
+  theme(axis.title.y= element_text(face = "bold", size = 12)) 
+
+deer_abundance_plot
+```
+
+```{r}
+#Saving image_frame_plot
+ggsave(filename = "deer_abundance_plot.png", plot = deer_abundance_plot, width = 8, height = 6, dpi = 300)
+```
+
+
+
+```{r}
+library(emmeans)
+identity_animal_prot_tukey <- emmeans(regression_top_supported, pairwise~identity_animal_prot, adjust="tukey", rg.limit=20000808000)
+identity_animal_prot_tukey
+identity_animal_prot_tukey_df <- as.data.frame(identity_animal_prot_tukey$emmeans)
+```
+
+```{r}
+#Make plot from tukey test object
+identity_animal_prot_plot <- ggplot(identity_animal_prot_tukey_df)+  
+theme_bw()+  
+geom_pointrange(aes(x=identity_animal_prot, y=emmean, ymin = emmean-1.44*SE, ymax = emmean+1.44*SE), position=position_dodge(width = 1), size = 0.8, linewidth = 1)+  
+scale_x_discrete(labels = c("Strongly\ndisagree", "Disgree", "Somewhat\ndisagree", "Neither agree\nnor disagree", "Somewhat\nagree", "Agree", "Strongly\nagree", "I do not\nknow"))+ 
+ theme(axis.text.x= element_text(face = "bold", size = 8))+
+  theme(axis.text.y= element_text(face = "bold", size = 8)) + 
+  labs(y = "Estimate\n", x="\nAnimal protectionist")+
+theme(axis.title.x= element_text(face = "bold", size = 12))+
+  theme(axis.title.y= element_text(face = "bold", size = 12)) 
+
+identity_animal_prot_plot
+
+```
+
+
+```{r}
+#Saving image_frame_plot
+ggsave(filename = "identity_animal_prot_plot.png", plot = identity_animal_prot_plot, width = 8, height = 6, dpi = 300)
+```
+
+
+```{r}
+library(emmeans)
+identity_deer_stalker_tukey <- emmeans(regression_top_supported, pairwise~identity_deer_stalker, adjust="tukey", rg.limit=20000808000)
+identity_deer_stalker_tukey
+identity_deer_stalker_tukey_df <- as.data.frame(identity_deer_stalker_tukey$emmeans)
+```
+
+```{r}
+#Make plot from tukey test object
+identity_deer_stalker_plot <- ggplot(identity_deer_stalker_tukey_df)+  
+theme_bw()+  
+geom_pointrange(aes(x=identity_deer_stalker, y=emmean, ymin = emmean-1.44*SE, ymax = emmean+1.44*SE), position=position_dodge(width = 1), size = 0.8, linewidth = 1)+  
+scale_x_discrete(labels = c("Strongly\ndisagree", "Disgree", "Somewhat\ndisagree", "Neither agree\nnor disagree", "Somewhat\nagree", "Agree", "Strongly\nagree", "I do\nnot know")) + 
+  theme(axis.text.x= element_text(face = "bold", size = 8))+
+  theme(axis.text.y= element_text(face = "bold", size = 8)) + 
+  labs(y = "Estimate\n", x="\nDeer stalker")+
+theme(axis.title.x= element_text(face = "bold", size = 12))+
+  theme(axis.title.y= element_text(face = "bold", size = 12)) 
+
+identity_deer_stalker_plot
+```
+
+```{r}
+#Saving image_frame_plot
+ggsave(filename = "identity_deer_stalker_plot.png", plot = identity_deer_stalker_plot, width = 8, height = 6, dpi = 300)
+```
+
+
+
+```{r}
+library(emmeans)
+trust_gov_tukey <- emmeans(regression_top_supported, pairwise~trust_gov, adjust="tukey", rg.limit=20000808000)
+trust_gov_tukey
+trust_gov_tukey_df <- as.data.frame(trust_gov_tukey$emmeans)
+```
+
+```{r}
+#Make plot from tukey test object
+trust_gov_plot <- ggplot(trust_gov_tukey_df)+  
+theme_bw()+  
+geom_pointrange(aes(x=trust_gov, y=emmean, ymin = emmean-1.44*SE, ymax = emmean+1.44*SE), position=position_dodge(width = 1), size = 0.8, linewidth = 1)+  
+scale_x_discrete(labels = c("Never", "Only now\nand then", "Some of\nthe time", "Most of\nthe time", "Always", "I do not\nknow"))+ 
+  theme(axis.text.x= element_text(face = "bold", size = 8))+
+  theme(axis.text.y= element_text(face = "bold", size = 8)) + 
+  labs(y = "Estimate\n", x="\nTrust in Scottish Government")+
+theme(axis.title.x= element_text(face = "bold", size = 12))+
+  theme(axis.title.y= element_text(face = "bold", size = 12)) 
+
+trust_gov_plot
+
+```
+
+
+
+```{r}
+#Saving image_frame_plot
+ggsave(filename = "trust_gov_plot.png", plot = trust_gov_plot, width = 8, height = 6, dpi = 300)
+```
+
+
+
+```{r}
+library(ggpubr)
+
+identities_ggarrange <- ggarrange(image_frame_plot, identity_deer_stalker_plot, identity_animal_prot_plot, trust_gov_plot, ncol=2, nrow=2, labels = c("A", "B", "C", "D"))
+
+identities_ggarrange
+```
+
+
+```{r}
+library(ggpubr)
+
+deer_ggarrange <- ggarrange(deer_cull_knowledge_plot, deer_abundance_plot, deer_frequency_plot, gender_plot, ncol=2, nrow=2, labels = c("A", "B", "C", "D"))
+
+deer_ggarrange
+```
+
+
+```{r}
+#Saving image_frame_plot
+ggsave(filename = "identities_ggarrange.png", plot = identities_ggarrange, width = 8, height = 6, dpi = 300)
+```
+
+
+
+
+
+
+
+
+*Steps for demographics:*
+Create objects with the percentages of each category. 
+Combine them into a data frame. 
+Export this to word (somehow).
+
+`write.csv(data_frame_name, "csv_name", row.names= F)`
+
+**remember to check a few values by hand**
+
+```{r}
+age_category_count <- table(data_reduced$age_categories)
+age_category_count
+```
+
+```{r}
+age_category_percent <- (age_category_count / length(data_reduced$age_categories))*100
+age_category_percent <- as.data.frame(age_category_percent)
+age_category_percent
+```
+
+```{r}
+gender_count <- table(data_reduced$gender)
+gender_count 
+```
+
+```{r}
+gender_percent <- (gender_count / length(data_reduced$gender))*100
+gender_percent
+```
+
+```{r}
+ethnicity_count <- table(data_reduced$ethnicity)
+ethnicity_count 
+```
+
+```{r}
+ethnicity_percent <- (ethnicity_count / length(data_reduced$ethnicity))*100
+ethnicity_percent
+```
+
+
+```{r}
+education_count <- table(data_reduced$education)
+education_percent <- (education_count / length(data_reduced$education))*100
+education_percent
+```
+
+```{r}
+rural_urban_childhood_count <- table(data_reduced$rural_urban_childhood)
+rural_urban_childhood_percent <- (rural_urban_childhood_count / length(data_reduced$rural_urban_childhood))*100
+rural_urban_childhood_percent
+```
+
+
+```{r}
+rural_urban_current_count <- table(data_reduced$rural_urban_current)
+rural_urban_current_percent <- (rural_urban_current_count / length(data_reduced$rural_urban_current))*100
+rural_urban_current_percent
+```
+
+```{r}
+land_ownership_count <- table(data_reduced$land_ownership)
+land_ownership_percent <- (land_ownership_count / length(data_reduced$land_ownership))*100
+land_ownership_percent
+```
+
+```{r}
+demographics_df <- data.frame(gender_percent, age_category_percent)
+demographics_df
+```
+
+
+
+
+
+
+
+
+
+*Run a dredge on the non reduced (without MAC). *
+*Dredge - compares all possible models from the global model (full model) to return a top supported model. *
+*This will then give us a model small enough to do a tukey test on. *
+
+# ```{r}
+# library(MuMIn)
+# 
+# #First change na options, default is omit, but doesn't work with this.  
+# options(na.action = "na.fail")
+# 
+# #Runs the dredge. 
+# dredge <- dredge(regression, trace = TRUE)
+# 
+# #Then switch the na options back afterwards. 
+# options(na.action = "na.omit")
+# 
+# 
+# #Save the result of the dredge as a dataframe (takes ages). 
+# dredge_df <- as.data.frame(dredge)
+# 
+# #Then save as csv. 
+# write.csv(dredge_df, file = "dredge_df.csv")
+# 
+# #The next time you load R, you can just load the result, then comment out the rest of the code above. 
+# dredge_result <- read.csv(file = "dredge_df.csv")
+# ```
+
+
+
+```{r}
+#Fit two models, one called m1 (which is the top-supported model) and one called m2 (which is the competitor model).
+#Calculate their relative weights, just one against the other. Here's some code.
+library(MuMIn)
+
+m1 <- regression_top_supported
+m2 <- clm(vignette_acceptability ~ gender + 
+                           deer_cull_knowledge + deer_frequency + deer_abundance
+                         + identity_animal_prot + identity_deer_stalker
+                         + trust_gov
+                         , link = "logit", data = data_reduced)
+
+#Calculate model weights
+modweights <- round(Weights(AICc(m1, m2)), 3)
+modweights
+
+#Make table of models with all model fit statistics
+model.table <- model.sel(m1, m2)
+model.table
+```
+
+
+Evidence that using the model with image frame does explain our results better than if we did not include it in the model. Based on the AIC scores for the identical models with and without the image frame. 
+
+
+
+
+
+
+
+
+
+
+```{r}
+# library(ordinal) 
+# regression_reduced <- clm(vignette_acceptability ~ text_frame + image_frame + gain_loss_frame 
+#                          + age + gender + education_reduced + rural_urban_current_reduced + 
+#                            rural_urban_childhood_reduced + land_ownership_reduced
+#                          + deer_cull_knowledge_reduced + deer_frequency_reduced + 
+#                            deer_enjoy_reduced +
+#                            deer_abundance_reduced
+#                          + identity_animal_prot_reduced + identity_env_cons_reduced + 
+#                            identity_deer_stalker_reduced
+#                   + trust_gov_reduced
+#                          , link = "logit", data = data_reduced)
+# 
+# summary(regression_reduced)
+# #confint(regression)               
+```
+
+
+
+```{r}
+# #Estimated marginal means. 
+# library(emmeans)
+# 
+# anova <- anova(regression, type = "III")
+# anova
+```
